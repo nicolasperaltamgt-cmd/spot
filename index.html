@@ -1,0 +1,504 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#EEF1F5"><meta name="description" content="SPOT recupera los socios que dejan de venir a tu gimnasio y le vende a los interesados por WhatsApp, 24/7. 7 días gratis."><title>SPOT Gimnasios</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: hero centrado con chat que se escribe solo + chips → apps conectadas en cinta → 3 pilares → casos por pestaña → calculadora → números → planes → privacidad → dudas → cierre. Gris niebla + celeste de marca, modo oscuro incluido. */
+:root{
+  --bg:#EEF1F5; --bg2:#E4E9F0; --surface:#FFFFFF; --surface2:#F6F8FB; --line:#DCE3EC; --line2:#C9D3E0;
+  --ink:#0A1322; --muted:#566377; --dim:#7D8899;
+  --sky:#1FA3F0; --sky2:#0B7FCB; --skySoft:rgba(31,163,240,.12); --skyLine:rgba(31,163,240,.35); --onSky:#FFFFFF;
+  --wa:#1FAF5A; --waSoft:rgba(31,175,90,.12); --bad:#E5484D; --warn:#E39B16;
+  --bubble:#FFFFFF; --bubbleMe:#D8F2FF;
+  --shadow:0 1px 2px rgba(10,19,34,.05),0 12px 32px -12px rgba(10,19,34,.14);
+  --display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --body:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#070C15; --bg2:#0B1220; --surface:#0F1828; --surface2:#131E31; --line:#1D2A40; --line2:#2A3A55;
+  --ink:#EEF3FA; --muted:#A3B0C4; --dim:#7C8AA1; --sky:#45B8FF; --sky2:#7FCEFF; --skySoft:rgba(69,184,255,.13); --skyLine:rgba(69,184,255,.38); --onSky:#03121F;
+  --wa:#2FD07A; --waSoft:rgba(47,208,122,.13); --bubble:#16233A; --bubbleMe:#0F4C74; --shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#070C15; --bg2:#0B1220; --surface:#0F1828; --surface2:#131E31; --line:#1D2A40; --line2:#2A3A55;
+  --ink:#EEF3FA; --muted:#A3B0C4; --dim:#7C8AA1; --sky:#45B8FF; --sky2:#7FCEFF; --skySoft:rgba(69,184,255,.13); --skyLine:rgba(69,184,255,.38); --onSky:#03121F;
+  --wa:#2FD07A; --waSoft:rgba(47,208,122,.13); --bubble:#16233A; --bubbleMe:#0F4C74; --shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.6); color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;overflow-x:clip}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--bg)}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--sky);outline-offset:3px;border-radius:10px}
+.wrap{max-width:1160px;margin:0 auto}
+section{scroll-margin-top:84px}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.025em;text-wrap:balance;margin:0;font-weight:800}
+.eyebrow{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--sky2)}
+.h2{font-size:clamp(32px,4.8vw,56px);line-height:1.02;margin-top:12px}
+.h2 em{font-style:normal;color:var(--sky)}
+.lead{color:var(--muted);font-size:clamp(16px,1.6vw,19px);max-width:640px;margin:16px auto 0}
+.head{text-align:center;display:flex;flex-direction:column;align-items:center}
+.block{padding-block:clamp(80px,11vw,140px) 0}
+.btn{min-height:52px;padding:0 24px;border-radius:999px;border:0;background:var(--ink);color:var(--bg);font-family:var(--body);font-weight:800;font-size:15.5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s;white-space:nowrap}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.btn.sky{background:var(--sky);color:var(--onSky)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line2)}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn.sm{min-height:42px;padding:0 18px;font-size:14px}
+
+/* Nav */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;padding-block:12px}
+.nav .bar{max-width:1160px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--surface) 78%,transparent);backdrop-filter:blur(16px) saturate(1.4);border:1px solid var(--line);border-radius:999px;padding:8px 8px 8px 18px;box-shadow:var(--shadow)}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none;font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em}
+.logo i{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--sky),var(--sky2));display:grid;place-items:center;color:#fff;font-style:normal;font-size:16px}
+.links{display:flex;gap:26px;font-size:14.5px;font-weight:700}
+.links a{color:var(--muted);text-decoration:none;transition:color .2s}
+.links a:hover{color:var(--ink)}
+.navR{display:flex;gap:6px}
+@media (max-width:920px){.links{display:none}}
+@media (max-width:430px){.navR .ghost{display:none}}
+
+/* Hero */
+.hero{text-align:center;padding-block:clamp(44px,8vw,96px) 0;position:relative;overflow-x:clip}
+.orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;pointer-events:none;z-index:0;animation:float 14s ease-in-out infinite}
+.orb.a{width:420px;max-width:70vw;aspect-ratio:1;background:radial-gradient(circle,rgba(31,163,240,.45),transparent 65%);left:-6%;top:0}
+.orb.b{width:360px;max-width:60vw;aspect-ratio:1;background:radial-gradient(circle,rgba(31,175,90,.28),transparent 65%);right:-4%;top:120px;animation-delay:-6s}
+@keyframes float{50%{transform:translate(24px,-18px) scale(1.06)}}
+.hero>*:not(.orb){position:relative;z-index:1}
+.badge{display:inline-flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 14px 6px 6px;font-size:13.5px;font-weight:700;box-shadow:var(--shadow);max-width:100%}
+.badge b{background:var(--waSoft);color:var(--wa);border-radius:999px;padding:3px 10px;font-size:12px;flex-shrink:0;transition:background .3s,color .3s}
+.badge .btxt{display:inline-block;min-width:0;overflow:hidden}
+.badge .btxt span{display:inline-block;animation:bIn .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes bIn{from{transform:translateY(100%);opacity:0}}
+h1{font-size:clamp(44px,8.6vw,104px);line-height:.96;margin:22px auto 0;max-width:980px}
+h1 .rot{display:inline-block;color:var(--sky);position:relative}
+h1 .rot span{display:inline-block;animation:wordIn .55s cubic-bezier(.2,.8,.2,1)}
+@keyframes wordIn{from{transform:translateY(.35em);opacity:0;filter:blur(6px)}}
+.hero .lead{font-size:clamp(17px,1.8vw,20px)}
+.ctas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:28px}
+.micro{margin-top:14px;font-size:13.5px;color:var(--dim);font-weight:600}
+
+/* Chat demo */
+.console{max-width:760px;margin:44px auto 0;background:var(--surface);border:1px solid var(--line);border-radius:28px;box-shadow:0 30px 80px -30px rgba(10,19,34,.35);text-align:left;overflow:hidden}
+.c-top{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--surface2)}
+.c-top .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--sky),var(--sky2));color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:800;flex-shrink:0}
+.c-top strong{font-size:14.5px;display:block;line-height:1.2}
+.c-top small{font-size:12px;color:var(--wa);font-weight:800}
+.c-top .live{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--wa);box-shadow:0 0 0 4px var(--waSoft);animation:pulse 1.8s infinite;flex-shrink:0}
+@keyframes pulse{50%{box-shadow:0 0 0 8px transparent}}
+.c-body{height:360px;overflow:hidden;padding:18px;display:flex;flex-direction:column;gap:10px;justify-content:flex-end;background:radial-gradient(circle at 10% 0%,var(--skySoft),transparent 40%),var(--bg)}
+.m{max-width:85%;padding:10px 14px;border-radius:18px;font-size:14.5px;line-height:1.45;box-shadow:0 1px 1px rgba(10,19,34,.06);animation:pop .35s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{from{transform:translateY(10px) scale(.96);opacity:.2}}
+.m.me{align-self:flex-end;background:var(--bubbleMe);border-bottom-right-radius:6px}
+.m.bot{align-self:flex-start;background:var(--bubble);border:1px solid var(--line);border-bottom-left-radius:6px}
+.m b{color:var(--sky2)}
+.m .card{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.m .rowc{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;padding:6px 10px;border-radius:10px;background:var(--surface2);border:1px solid var(--line)}
+.m .rowc span:last-child{font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap}
+.ok{color:var(--wa)}.warn{color:var(--warn)}.skyt{color:var(--sky2)}
+.status{align-self:flex-start;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:var(--muted);padding:6px 2px}
+.status i{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--line2);border-top-color:var(--sky);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.shimmer{background:linear-gradient(90deg,var(--muted) 0%,var(--ink) 50%,var(--muted) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sh 1.4s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.c-input{display:flex;align-items:center;gap:10px;padding:12px 12px 12px 18px;border-top:1px solid var(--line);background:var(--surface)}
+.c-input .ph{flex:1;min-width:0;font-size:15px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-input .ph:empty::before{content:"Pedile algo a SPOT…";color:var(--dim)}
+.caret{display:inline-block;width:2px;height:1.1em;background:var(--sky);vertical-align:-3px;margin-left:1px;animation:blink 1s steps(1) infinite;flex-shrink:0}
+@keyframes blink{50%{opacity:0}}
+.send{width:42px;height:42px;border-radius:50%;background:var(--sky);color:#fff;display:grid;place-items:center;flex-shrink:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px auto 0;max-width:820px}
+.chip{min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-family:var(--body);font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
+.chip:hover{border-color:var(--sky);transform:translateY(-1px)}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* Apps */
+.apps{margin-top:clamp(56px,8vw,90px);text-align:center}
+.apps p{font-size:14px;color:var(--dim);font-weight:700;margin:0 0 16px}
+.marq{overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.marq-in{display:flex;gap:12px;width:max-content;animation:mq 32s linear infinite}
+.marq:hover .marq-in{animation-play-state:paused}
+@keyframes mq{to{transform:translateX(-50%)}}
+.app{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 16px;font-weight:800;font-size:14.5px;white-space:nowrap}
+.app i{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;flex-shrink:0}
+
+/* Pilares */
+.pillars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px}
+@media (max-width:900px){.pillars{grid-template-columns:1fr}}
+.pil{background:var(--surface);border:1px solid var(--line);border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:12px;min-width:0;transition:transform .3s,box-shadow .3s}
+.pil:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+.pil .n{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--sky2);letter-spacing:.1em}
+.pil h3{font-size:clamp(26px,2.6vw,32px);line-height:1.05}
+.pil p{margin:0;color:var(--muted)}
+.viz{margin-top:6px;background:var(--surface2);border:1px solid var(--line);border-radius:18px;padding:14px;min-height:150px;display:flex;flex-direction:column;justify-content:center;gap:8px;overflow:hidden;position:relative}
+.vrow{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:700}
+.vrow .a{width:28px;height:28px;border-radius:50%;background:var(--bg2);display:grid;place-items:center;font-size:11px;flex-shrink:0}
+.vrow .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tagx{font-family:var(--mono);font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.t-warn{background:rgba(227,155,22,.14);color:var(--warn)}.t-ok{background:var(--waSoft);color:var(--wa)}.t-sky{background:var(--skySoft);color:var(--sky2)}
+.scan::after{content:"";position:absolute;left:0;right:0;height:40%;top:-40%;background:linear-gradient(180deg,transparent,var(--skySoft),transparent);animation:scan 3s ease-in-out infinite;pointer-events:none}
+@keyframes scan{to{top:100%}}
+.typingb{display:inline-flex;gap:4px;padding:10px 12px;background:var(--bubble);border:1px solid var(--line);border-radius:14px;align-self:flex-start}
+.typingb i{width:6px;height:6px;border-radius:50%;background:var(--dim);animation:tb 1s infinite}
+.typingb i:nth-child(2){animation-delay:.2s}.typingb i:nth-child(3){animation-delay:.4s}
+@keyframes tb{50%{transform:translateY(-3px);opacity:.4}}
+.big{font-family:var(--display);font-weight:800;font-size:46px;line-height:1;color:var(--wa);font-variant-numeric:tabular-nums}
+
+/* Casos */
+.tabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:36px}
+.tab{min-height:44px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-family:var(--body);font-size:14.5px;font-weight:800;cursor:pointer;transition:all .2s}
+.tab[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:24px}
+@media (max-width:960px){.cases{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.cases{grid-template-columns:1fr}}
+.case{border-radius:26px;padding:22px;min-height:300px;display:flex;flex-direction:column;gap:10px;color:#fff;position:relative;overflow:hidden;animation:caseIn .5s cubic-bezier(.2,.8,.2,1) both;min-width:0}
+.case:nth-child(2){animation-delay:.07s}.case:nth-child(3){animation-delay:.14s}
+@keyframes caseIn{from{transform:translateY(16px)}}
+.case::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 90% 0%,rgba(255,255,255,.28),transparent 45%);pointer-events:none}
+.case h3{font-size:24px;line-height:1.08;position:relative}
+.case p{margin:0;font-size:14.5px;opacity:.92;position:relative}
+.case .bub{margin-top:auto;background:rgba(255,255,255,.95);color:#0A1322;border-radius:16px 16px 16px 4px;padding:10px 12px;font-size:13.5px;line-height:1.4;position:relative;box-shadow:0 8px 24px -10px rgba(0,0,0,.35)}
+.case .bub small{display:block;font-family:var(--mono);font-size:10px;color:#566377;letter-spacing:.06em;margin-bottom:3px}
+.case a{position:relative;align-self:flex-start;margin-top:4px;background:rgba(255,255,255,.2);color:#fff;border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:800;text-decoration:none;backdrop-filter:blur(6px)}
+.g1{background:linear-gradient(150deg,#0B7FCB,#1FA3F0 60%,#56C3FF)}
+.g2{background:linear-gradient(150deg,#12894A,#1FAF5A 60%,#5ED68D)}
+.g3{background:linear-gradient(150deg,#3A2F9E,#5B5BE0 60%,#8C8CFF)}
+.g4{background:linear-gradient(150deg,#B2450F,#E7672A 60%,#FF9A5C)}
+.g5{background:linear-gradient(150deg,#0A1322,#1D2A40 60%,#33476A)}
+.g6{background:linear-gradient(150deg,#9C1F5E,#D6337F 60%,#F57AB0)}
+
+/* Calculadora */
+.calc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:44px;align-items:start}
+@media (max-width:860px){.calc{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:28px;padding:clamp(22px,3vw,32px);min-width:0}
+.cin{display:flex;flex-direction:column;gap:26px}
+.cin label{display:flex;flex-direction:column;gap:10px;font-weight:800;font-size:15px}
+.lv{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.lv b{font-family:var(--mono);color:var(--sky2);font-size:15px;white-space:nowrap}
+input[type=range]{width:100%;accent-color:#1FA3F0;min-height:28px}
+.cout{display:flex;flex-direction:column;gap:12px;background:#0A1322;color:#EEF3FA;border-color:#0A1322}
+.cout .lbl{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
+.num{font-family:var(--display);font-weight:800;font-size:clamp(40px,6vw,64px);line-height:1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.num.bad{color:#FF7A7E}.num.good{color:#5FD3FF}
+.cout p{margin:0;opacity:.8;font-size:14.5px}
+.cout hr{border:0;border-top:1px solid rgba(127,140,160,.35);margin:6px 0;width:100%}
+.cout .btn{background:#EEF3FA;color:#0A1322;margin-top:6px}
+
+/* Números */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:44px}
+@media (max-width:860px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:24px;min-width:0}
+.stat b{display:block;font-family:var(--display);font-weight:800;font-size:clamp(34px,4vw,52px);line-height:1;font-variant-numeric:tabular-nums}
+.stat span{display:block;font-size:14px;color:var(--muted);margin-top:8px}
+.src{font-size:12.5px;color:var(--dim);margin-top:12px;text-align:center}
+
+/* Planes */
+.plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:44px;align-items:stretch}
+@media (max-width:960px){.plans{grid-template-columns:1fr;max-width:520px;margin-inline:auto}}
+.plan{background:var(--surface);border:1px solid var(--line);border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:14px;min-width:0;position:relative}
+.plan.top{background:#0A1322;color:#EEF3FA;border-color:#0A1322;box-shadow:0 40px 80px -30px rgba(10,19,34,.5)}
+.plan.top p,.plan.top li{color:#C3CEDD}
+.plan .badge2{position:absolute;top:-13px;left:28px;background:var(--sky);color:#fff;font-size:12px;font-weight:800;border-radius:999px;padding:5px 12px}
+.plan .name{font-weight:800;font-size:16px}
+.plan .amt{font-family:var(--display);font-weight:800;font-size:clamp(40px,4vw,50px);line-height:1;white-space:nowrap}
+.plan .amt small{font-family:var(--body);font-size:16px;font-weight:600;opacity:.7}
+.plan p{margin:0;color:var(--muted);font-size:14.5px}
+.plan ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font-size:15px;flex:1}
+.plan li{display:flex;gap:10px;align-items:flex-start}
+.plan li svg{color:var(--sky);flex-shrink:0;margin-top:3px}
+.plan.top .btn{background:var(--sky);color:#fff}
+.note{font-size:13.5px;color:var(--dim);margin-top:16px;text-align:center}
+
+/* Privacidad */
+.priv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:44px}
+@media (max-width:860px){.priv{grid-template-columns:1fr}}
+.pv{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:24px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pv i{width:44px;height:44px;border-radius:14px;background:var(--skySoft);color:var(--sky2);display:grid;place-items:center}
+.pv h3{font-size:19px;font-family:var(--body);letter-spacing:0}
+.pv p{margin:0;color:var(--muted);font-size:14.5px}
+
+/* FAQ */
+.faq{max-width:820px;margin:40px auto 0;display:flex;flex-direction:column;gap:10px}
+details{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px 22px}
+summary{cursor:pointer;list-style:none;font-weight:800;font-size:16.5px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-family:var(--mono);color:var(--sky2);font-size:22px;flex-shrink:0;transition:transform .25s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{margin:10px 0 0;color:var(--muted)}
+
+/* Cierre */
+.final{margin-top:clamp(80px,11vw,140px);border-radius:36px;padding:clamp(32px,6vw,72px) clamp(20px,5vw,56px);text-align:center;background:radial-gradient(circle at 15% 0%,rgba(255,255,255,.35),transparent 40%),linear-gradient(140deg,#0B7FCB,#1FA3F0 55%,#45C3FF);color:#fff;position:relative;overflow:hidden}
+.final h2{font-size:clamp(34px,5.4vw,68px);line-height:1;max-width:820px;margin:0 auto}
+.final p{margin:16px auto 0;font-size:18px;font-weight:600;opacity:.92;max-width:560px}
+.final .ctas .btn{background:#fff;color:#0A1322}
+.final .ctas .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+.tel{font-family:var(--display);font-weight:800;font-size:clamp(22px,4vw,30px);user-select:all;white-space:nowrap;margin-top:20px}
+footer{margin-top:56px;padding-block:28px calc(28px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--dim)}
+.fab{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;min-height:54px;padding:0 18px 0 14px;border-radius:999px;background:var(--wa);color:#fff;font-weight:800;font-size:15px;display:flex;align-items:center;gap:10px;text-decoration:none;box-shadow:0 14px 34px -10px rgba(31,175,90,.7);transition:opacity .3s,transform .3s}
+.fab.hide{opacity:0;transform:translateY(20px);pointer-events:none}
+@media (max-width:520px){.fab span{display:none}.fab{padding:0 15px}}
+
+/* Aparición al hacer scroll: el contenido ya se ve; solo sube un poco al entrar */
+.rv.go{animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{transform:translateY(28px);opacity:.35}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style></head><body>
+
+<header class="nav"><div class="bar">
+  <a class="logo" href="#inicio"><i>S</i>SPOT</a>
+  <nav class="links" aria-label="Principal"><a href="#como">Cómo funciona</a><a href="#casos">Qué hace</a><a href="#calc">Cuánto perdés</a><a href="#precios">Precios</a><a href="#dudas">Dudas</a></nav>
+  <div class="navR"><a class="btn ghost sm" href="app.html">Ingresar</a><a class="btn sm" href="app.html#registro">Probar gratis</a></div>
+</div></header>
+
+<main class="wrap">
+  <section class="hero" id="inicio">
+    <div class="orb a" aria-hidden="true"></div><div class="orb b" aria-hidden="true"></div>
+    <span class="badge"><b id="badgeK">Nuevo</b><span class="btxt" id="badgeT"><span>Vendedor 24/7 por WhatsApp para gimnasios</span></span></span>
+    <h1>Tu gimnasio <span class="rot" id="rot"><span>se llena solo.</span></span></h1>
+    <p class="lead">SPOT detecta al socio que dejó de venir y le escribe, responde a los que preguntan precio y agenda la clase de prueba. Vos solo mirás cómo vuelven.</p>
+    <div class="ctas"><a class="btn sky" href="app.html#registro">Probar 7 días gratis</a><a class="btn ghost" href="https://wa.me/5491128952879?text=Hola%2C%20quiero%20ver%20una%20demo%20de%20SPOT" target="_blank" rel="noopener">Ver una demo</a></div>
+    <p class="micro">7 días gratis · Sin tarjeta · Listo en 15 minutos</p>
+
+    <div class="console" aria-label="Ejemplo de lo que hace SPOT">
+      <div class="c-top"><div class="av" aria-hidden="true">S</div><div><strong>SPOT · Fuerza Gym</strong><small>en línea</small></div><span class="live"><span class="dot"></span>EJEMPLO</span></div>
+      <div class="c-body" id="cbody" aria-live="polite"></div>
+      <div class="c-input"><span class="ph" id="ph"></span><span class="caret" aria-hidden="true"></span><span class="send" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Probá un pedido">
+      <button class="chip" type="button" data-s="0" aria-pressed="true">¿Quién dejó de venir?</button>
+      <button class="chip" type="button" data-s="1" aria-pressed="false">Respondé a los interesados</button>
+      <button class="chip" type="button" data-s="2" aria-pressed="false">Llená el horario de las 15</button>
+      <button class="chip" type="button" data-s="3" aria-pressed="false">¿Cuánta plata recuperé?</button>
+    </div>
+  </section>
+
+  <div class="apps rv">
+    <p>Funciona con lo que ya usás</p>
+    <div class="marq" aria-label="Herramientas compatibles"><div class="marq-in" id="marq"></div></div>
+  </div>
+
+  <section class="block" id="como" aria-labelledby="comoT">
+    <div class="head rv"><span class="eyebrow">Cómo funciona</span><h2 class="h2" id="comoT">Detecta. Escribe. <em>Recupera.</em></h2><p class="lead">Lo configurás una vez y trabaja todos los días, aunque vos no estés.</p></div>
+    <div class="pillars">
+      <article class="pil rv">
+        <span class="n">PASO 1</span><h3>Detecta</h3><p>Tus socios escanean el QR al entrar. SPOT sabe quién viene y quién dejó de venir.</p>
+        <div class="viz scan" aria-hidden="true">
+          <div class="vrow"><span class="a">MG</span><span class="t">Martina G.</span><span class="tagx t-warn">12 días</span></div>
+          <div class="vrow"><span class="a">JP</span><span class="t">Juan P.</span><span class="tagx t-warn">15 días</span></div>
+          <div class="vrow"><span class="a">LR</span><span class="t">Lucía R.</span><span class="tagx t-ok">vino hoy</span></div>
+        </div>
+        <a class="btn sm ghost" href="app.html#registro" style="align-self:flex-start">Probar gratis</a>
+      </article>
+      <article class="pil rv">
+        <span class="n">PASO 2</span><h3>Escribe</h3><p>Le manda un WhatsApp personal con la promo que elegiste. Y a los interesados les responde al toque.</p>
+        <div class="viz" aria-hidden="true">
+          <div class="m bot" style="animation:none;max-width:100%;font-size:13.5px">Hola <b>Martina</b>, te extrañamos. Esta semana tu vuelta tiene un batido de regalo.</div>
+          <span class="typingb"><i></i><i></i><i></i></span>
+        </div>
+        <a class="btn sm ghost" href="app.html#registro" style="align-self:flex-start">Probar gratis</a>
+      </article>
+      <article class="pil rv">
+        <span class="n">PASO 3</span><h3>Recupera</h3><p>Cuando el socio vuelve y escanea, lo ves en tu panel convertido en plata.</p>
+        <div class="viz" aria-hidden="true"><span style="font-size:13px;color:var(--muted);font-weight:700">Recuperado este mes</span><div class="big">$585.000</div><span class="tagx t-ok" style="align-self:flex-start">9 socios volvieron · ejemplo</span></div>
+        <a class="btn sm ghost" href="app.html#registro" style="align-self:flex-start">Probar gratis</a>
+      </article>
+    </div>
+  </section>
+
+  <section class="block" id="casos" aria-labelledby="casT">
+    <div class="head rv"><span class="eyebrow">Qué hace</span><h2 class="h2" id="casT">Todo lo que te hace <em>perder socios,</em> resuelto.</h2></div>
+    <div class="tabs" role="tablist" aria-label="Categorías" id="tabs">
+      <button class="tab" role="tab" type="button" data-t="0" aria-selected="true">Recuperar socios</button>
+      <button class="tab" role="tab" type="button" data-t="1" aria-selected="false">Conseguir nuevos</button>
+      <button class="tab" role="tab" type="button" data-t="2" aria-selected="false">Llenar horarios</button>
+      <button class="tab" role="tab" type="button" data-t="3" aria-selected="false">Para tus socios</button>
+    </div>
+    <div class="cases" id="cases" role="tabpanel"></div>
+  </section>
+
+  <section class="block" id="calc" aria-labelledby="calcT">
+    <div class="head rv"><span class="eyebrow">Hacé la cuenta</span><h2 class="h2" id="calcT">¿Cuánta plata <em>se te va por mes?</em></h2><p class="lead">Mové los números de tu gimnasio. Es una estimación.</p></div>
+    <div class="calc">
+      <div class="panel cin rv">
+        <label for="cS"><span class="lv"><span>Socios activos</span><b id="vS">250</b></span><input type="range" id="cS" min="50" max="1000" step="10" value="250"></label>
+        <label for="cQ"><span class="lv"><span>Cuota mensual</span><b id="vQ">$35.000</b></span><input type="range" id="cQ" min="15000" max="100000" step="1000" value="35000"></label>
+        <label for="cB"><span class="lv"><span>Se dan de baja por mes</span><b id="vB">8%</b></span><input type="range" id="cB" min="2" max="20" step="1" value="8"></label>
+      </div>
+      <div class="panel cout rv" aria-live="polite">
+        <div class="lbl">Perdés por mes</div><div class="num bad" id="oLost">$700.000</div><p id="oLostT"></p>
+        <hr>
+        <div class="lbl">Si SPOT recupera 1 de cada 4</div><div class="num good" id="oRec">$175.000</div><p id="oRecT"></p>
+        <a class="btn" href="app.html#registro">Quiero recuperar esa plata</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="numT">
+    <div class="head rv"><span class="eyebrow">El problema es real</span><h2 class="h2" id="numT">Retener socios es lo que más <em>le preocupa al dueño.</em></h2></div>
+    <div class="stats">
+      <div class="stat rv"><b>8.662</b><span>gimnasios activos en Argentina</span></div>
+      <div class="stat rv"><b>79%</b><span>tiene una sola sede</span></div>
+      <div class="stat rv"><b>51%</b><span>dice que su mayor desafío es conseguir socios</span></div>
+      <div class="stat rv"><b>44%</b><span>dice que es retener a los que ya tiene</span></div>
+    </div>
+    <p class="src">Relevamiento de Mercado Fitness y Trainingym citado por <a href="https://www.iprofesional.com/negocios/433377-boom-del-entrenamiento-de-fuerza-y-gimnasios-low-cost-que-mueve-al-mercado-del-fitness-en-argentina" target="_blank" rel="noopener">iProfesional</a>.</p>
+  </section>
+
+  <section class="block" id="precios" aria-labelledby="prT">
+    <div class="head rv"><span class="eyebrow">Precios</span><h2 class="h2" id="prT">Probalo gratis. <em>7 días, sin tarjeta.</em></h2></div>
+    <div class="plans">
+      <div class="plan rv">
+        <div class="name">Básico</div><div class="amt">$29.900 <small>/ mes</small></div><p>Para empezar a recuperar socios. 7 días gratis.</p>
+        <ul>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Recuperador de socios por WhatsApp</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>QR de entrada y carga por Excel</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>App del socio con % en vivo</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Panel con la plata recuperada</li>
+        </ul>
+        <a class="btn ghost" href="app.html#registro">Empezar gratis</a>
+      </div>
+      <div class="plan top rv">
+        <span class="badge2">Más elegido</span>
+        <div class="name">Pro</div><div class="amt">$49.900 <small>/ mes</small></div><p>Recupera socios y consigue nuevos. 7 días gratis.</p>
+        <ul>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Todo el plan Básico</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Vendedor con IA 24/7 que agenda clases de prueba</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Seguimiento de interesados que no responden</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Máquinas con QR y pantalla para la TV</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Soporte prioritario por WhatsApp</li>
+        </ul>
+        <a class="btn" href="app.html#registro">Probar Pro gratis</a>
+      </div>
+      <div class="plan rv">
+        <div class="name">Fundador</div><div class="amt">$39.900 <small>/ mes</small></div><p>El plan Pro, solo para los primeros 10 gimnasios.</p>
+        <ul>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Todo el plan Pro</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Precio congelado 6 meses</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>A cambio de tu testimonio</li>
+        </ul>
+        <a class="btn ghost" href="https://wa.me/5491128952879?text=Hola%2C%20quiero%20el%20plan%20Fundador%20de%20SPOT" target="_blank" rel="noopener">Quiero ser fundador</a>
+      </div>
+    </div>
+    <p class="note">Precios en pesos argentinos, con ajuste cada 3 meses. Sin permanencia: cancelás cuando quieras.</p>
+  </section>
+
+  <section class="block" aria-labelledby="pvT">
+    <div class="head rv"><span class="eyebrow">Tus datos</span><h2 class="h2" id="pvT">Tus socios son tuyos.</h2></div>
+    <div class="priv">
+      <div class="pv rv"><i><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></i><h3>Solo vos los ves</h3><p>Cada gimnasio tiene su cuenta. Nadie más puede ver tus socios ni tus números.</p></div>
+      <div class="pv rv"><i><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></i><h3>No los vendemos</h3><p>Usamos los datos solo para que SPOT funcione en tu gimnasio. Nunca para publicidad.</p></div>
+      <div class="pv rv"><i><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></i><h3>Vos aprobás todo</h3><p>Elegís el texto de cada mensaje y podés pausar el vendedor cuando quieras.</p></div>
+    </div>
+  </section>
+
+  <section class="block" id="dudas" aria-labelledby="dT">
+    <div class="head rv"><span class="eyebrow">Dudas</span><h2 class="h2" id="dT">Preguntas frecuentes</h2></div>
+    <div class="faq">
+      <details class="rv"><summary>Ya tengo un sistema de gestión, ¿lo reemplaza?</summary><p>No. SPOT se pone arriba y hace lo que tu sistema no hace: salir a buscar al socio por WhatsApp.</p></details>
+      <details class="rv"><summary>¿El vendedor inventa precios o promos?</summary><p>No. Responde solo con la información que cargás vos. Si le preguntan algo que no sabe, te pasa la conversación.</p></details>
+      <details class="rv"><summary>¿Mis socios van a recibir spam?</summary><p>No. Un solo mensaje personal cuando dejan de venir, con el texto que aprobaste.</p></details>
+      <details class="rv"><summary>¿Tengo que instalar algo?</summary><p>No. Funciona desde el navegador del celu o la compu. Solo imprimís el QR de la entrada.</p></details>
+      <details class="rv"><summary>¿Cómo sé que funciona?</summary><p>Tu panel muestra cuántos socios volvieron y cuánta plata representa. Lo podés comprobar en los 7 días de prueba gratis, antes de pagar.</p></details>
+      <details class="rv"><summary>¿Me ato a un contrato?</summary><p>No. Cancelás cuando quieras.</p></details>
+    </div>
+  </section>
+
+  <section class="final rv" aria-labelledby="fT">
+    <h2 id="fT">Que tu gimnasio se llene solo, desde esta semana.</h2>
+    <p>Creá tu cuenta en 2 minutos o escribinos y te lo dejamos funcionando.</p>
+    <div class="ctas"><a class="btn" href="app.html#registro">Probar 7 días gratis</a><a class="btn ghost" href="https://wa.me/5491128952879" target="_blank" rel="noopener">Escribinos por WhatsApp</a></div>
+    <div class="tel" id="tel">+54 9 11 2895-2879</div>
+  </section>
+
+  <footer><span>© SPOT · Software para gimnasios</span><span>Hecho en Buenos Aires</span></footer>
+</main>
+
+<a class="fab hide" id="fab" href="https://wa.me/5491128952879" target="_blank" rel="noopener" aria-label="Escribinos por WhatsApp"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.6-5.2A8.5 8.5 0 1 1 21 11.5z"/></svg><span>Escribinos</span></a>
+
+<script>
+(function(){
+  /* En la vista previa (fuera del sitio publicado) la app no existe todavía:
+     "Probar gratis" abre WhatsApp e "Ingresar" abre el panel de demo */
+  var PREVIEW=location.protocol==='file:'||/claude\.ai|claudeusercontent/.test(location.host);
+  var TRY='https://wa.me/5491128952879?text='+encodeURIComponent('Hola, quiero probar SPOT 7 días gratis en mi gimnasio');
+  var DEMO='https://claude.ai/artifact/SWfbKLuSYyCEzffA4nyhqZ';
+  var APP='app.html';
+  if(PREVIEW)document.querySelectorAll('a[href^="app.html"]').forEach(function(a){var reg=/registro/.test(a.getAttribute('href'));a.href=reg?TRY:DEMO;a.target='_blank';a.rel='noopener'});
+  var RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function $(id){return document.getElementById(id)}
+  function money(n){return '$'+Math.round(n).toLocaleString('es-AR')}
+
+  /* Palabra que rota en el título */
+  var W=['se llena solo.','recupera socios.','vende 24/7.','no pierde a nadie.'],wi=0;
+  if(!RM)setInterval(function(){wi=(wi+1)%W.length;$('rot').innerHTML='<span>'+W[wi]+'</span>'},2800);
+
+  /* Insignia que va mostrando lo que hace SPOT */
+  var BD=[['Nuevo','Vendedor 24/7 por WhatsApp para gimnasios','wa'],['Recupera','Le escribe al socio que dejó de venir','sky'],['Vende','Responde precios y agenda clases de prueba','wa'],['Llena','Manda promos en los horarios vacíos','sky'],['En vivo','Tus socios ven qué tan lleno está el gym','wa'],['Máquinas','Muestra qué máquinas están libres','sky'],['Reporte','Te dice cuánta plata recuperaste','wa']],bi=0;
+  if(!RM)setInterval(function(){bi=(bi+1)%BD.length;var k=$('badgeK'),d=BD[bi];k.textContent=d[0];k.style.background=d[2]==='sky'?'var(--skySoft)':'var(--waSoft)';k.style.color=d[2]==='sky'?'var(--sky2)':'var(--wa)';$('badgeT').innerHTML='<span>'+d[1]+'</span>'},2600);
+
+  /* Chat que se escribe solo */
+  var SC=[
+    {q:'¿Quién dejó de venir esta semana?',st:'Revisando asistencias',a:'Encontré <b>3 socios</b> que no vienen hace más de 10 días:',rows:[['Martina G.','12 días','warn'],['Juan P.','15 días','warn'],['Lucas B.','21 días','warn']],me2:'Sí, mandales el mensaje',a3:'Listo, ya les escribí a los 3 con el batido de regalo. Te aviso cuando vuelvan. ✓'},
+    {q:'Respondé a los que preguntan precio',st:'Leyendo mensajes nuevos',a:'Tenés <b>4 interesados</b> nuevos desde anoche. Ya les respondí:',rows:[['Camila · 23:14','Clase agendada','ok'],['Nico · 00:02','Clase agendada','ok'],['Sofi · 07:40','Interesada','skyt'],['Pablo · 08:15','Te necesita','warn']],a2:'Pablo preguntó algo que no sé. Te dejé su chat para que le respondas vos.'},
+    {q:'Llená el horario de las 15',st:'Mirando la ocupación de hoy',a:'A las 15 h el gym está al <b>22%</b>. Les escribí a los socios que suelen venir a la tarde con <b>doble puntos</b>:',rows:[['Mensajes enviados','38','skyt'],['Confirmaron que van','11','ok']],a2:'Ya hay 11 confirmados para las 15 h. ✓'},
+    {q:'¿Cuánta plata recuperé este mes?',st:'Calculando',a:'Este mes recuperaste <b>$585.000</b>:',rows:[['Socios que volvieron','9','ok'],['Nuevos por WhatsApp','4','ok'],['SPOT te costó','$49.900','skyt']],a2:'SPOT se pagó <b>11 veces</b>. ¿Te mando el reporte el viernes?'}
+  ];
+  var body=$('cbody'),ph=$('ph'),cur=0,run=0,last=0;
+  function add(html,cls){var d=document.createElement('div');d.className=cls;d.innerHTML=html;body.appendChild(d);while(body.scrollHeight>body.clientHeight+4&&body.children.length>1)body.removeChild(body.firstChild);return d}
+  function wait(ms,id){return new Promise(function(r){setTimeout(function(){r(id===run)},RM?0:ms)})}
+  async function typeIn(text,id){ph.textContent='';if(RM){ph.textContent=text;return true}for(var i=0;i<=text.length;i++){if(id!==run)return false;ph.textContent=text.slice(0,i);await wait(26+Math.random()*30,id)}return true}
+  function rows(r){return '<div class="card">'+r.map(function(x){return '<div class="rowc"><span>'+x[0]+'</span><span class="'+x[2]+'">'+x[1]+'</span></div>'}).join('')+'</div>'}
+  async function play(i,instant){
+    var id=++run;cur=i;[].forEach.call(document.querySelectorAll('#chips .chip'),function(c){c.setAttribute('aria-pressed',+c.dataset.s===i)});
+    var s=SC[i];
+    if(instant){body.innerHTML='';add(s.q,'m me');add(s.a+rows(s.rows),'m bot');if(s.me2){add(s.me2,'m me');add(s.a3,'m bot')}else if(s.a2)add(s.a2,'m bot');ph.textContent='';return}
+    if(!await typeIn(s.q,id))return; if(!await wait(350,id))return;
+    ph.textContent='';body.innerHTML='';add(s.q,'m me');
+    var st=add('<i></i><span class="shimmer">'+s.st+'…</span>','status');
+    if(!await wait(1300,id))return; st.remove();
+    add(s.a+rows(s.rows),'m bot');
+    if(!await wait(1500,id))return;
+    if(s.me2){if(!await typeIn(s.me2,id))return;if(!await wait(250,id))return;ph.textContent='';add(s.me2,'m me');if(!await wait(900,id))return;add(s.a3,'m bot')}
+    else if(s.a2)add(s.a2,'m bot');
+  }
+  $('chips').addEventListener('click',function(e){var b=e.target.closest('[data-s]');if(!b)return;last=Date.now();play(+b.dataset.s)});
+  play(0,true);
+  var started=false;
+  function autoplay(){if(started)return;started=true;setTimeout(function(){if(Date.now()-last>3000)play(0)},900);setInterval(function(){if(Date.now()-last<15000)return;play((cur+1)%SC.length)},11000)}
+  if('IntersectionObserver' in window){var io0=new IntersectionObserver(function(e){if(e[0].isIntersecting){autoplay();io0.disconnect()}});io0.observe(body)}else autoplay();
+
+  /* Cinta de herramientas */
+  var APPS=[['WhatsApp','#1FAF5A','M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.6-5.2A8.5 8.5 0 1 1 21 11.5z'],['Instagram','#D6337F','M4 4h16v16H4zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM17 7h.01'],['Excel','#1E7B45','M4 4h16v16H4zM8 8l8 8M16 8l-8 8'],['Google Sheets','#16A34A','M4 4h16v16H4zM4 10h16M4 15h16M10 4v16'],['Mercado Pago','#0B7FCB','M3 7h18v10H3zM3 11h18'],['QR de entrada','#33476A','M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3z'],['Pantalla TV','#5B5BE0','M2 5h20v12H2zM8 21h8M12 17v4'],['Huella y DNI','#E7672A','M12 11v2M8 13a4 4 0 0 1 8 0v3M5 13a7 7 0 0 1 14 0']];
+  var one=APPS.map(function(a){return '<span class="app"><i style="background:'+a[1]+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+a[2]+'"/></svg></i>'+a[0]+'</span>'}).join('');
+  $('marq').innerHTML=one+one;
+
+  /* Casos por pestaña */
+  var CASES=[
+    [['g1','Le escribe al que dejó de venir','A los 10 días sin venir le llega un WhatsApp personal con tu promo.','MENSAJE AUTOMÁTICO','Hola Juan, hace 15 días que no te vemos. Tu vuelta tiene un batido de regalo.'],['g5','Te avisa cuando vuelve','Si escanea el QR, cuenta como recuperado y lo ves en pesos.','TU PANEL','Juan volvió hoy a las 19:02. +$35.000 recuperados.'],['g3','Reporte de los viernes','Cuántos volvieron, cuántos están en riesgo y cuánta plata representa.','REPORTE','Esta semana volvieron 4 socios. Hay 6 en riesgo.']],
+    [['g2','Responde a las 23 h','Precios, horarios y dirección al instante, con la info que cargaste.','CONSULTA 23:14','¡Hola! El pase libre sale $40.000. ¿Te viene mejor mañana a las 18 o el jueves a las 19?'],['g4','Agenda la clase de prueba','Ofrece dos horarios, pide el nombre y confirma.','CLASE AGENDADA','¡Listo, Caro! Te espero el jueves a las 19. Traé ropa cómoda y agua.'],['g6','Hace el seguimiento','Al que dejó de responder le escribe de nuevo, sin presión.','SEGUIMIENTO','¿Pudiste pensarlo? Te guardo un lugar para probar gratis, sin compromiso.']],
+    [['g1','Detecta las horas vacías','Mira la ocupación en vivo con los escaneos del QR.','OCUPACIÓN','Hoy de 14 a 16 h: 22%. De 19 a 21 h: 88%.'],['g2','Manda la promo justa','Solo a los socios que suelen venir a esa hora.','PROMO','Hoy a las 15 h sumás doble puntos. ¡Te esperamos!'],['g3','Evita que se llene','Si pasa el 85%, sugiere otro horario a los que están por ir.','AVISO','Ahora está lleno. A las 21 h vas a estar más cómodo.']],
+    [['g5','% en vivo antes de salir','Tus socios ven qué tan lleno está el gym desde el celu.','APP DEL SOCIO','Ahora: 34% · Hay lugar · 52 cupos libres.'],['g4','Máquinas libres','Cada máquina tiene su QR. Ven cuál está libre.','MÁQUINAS','Rack 1: en uso · Rack 2: libre · Prensa: libre.'],['g6','Puntos y premios','Suman puntos al escanear y canjean premios que elegís vos.','PUNTOS','Tenés 180 puntos. Te faltan 20 para una clase gratis para un amigo.']]
+  ];
+  function showCases(i){[].forEach.call(document.querySelectorAll('#tabs .tab'),function(t){t.setAttribute('aria-selected',+t.dataset.t===i)});
+    $('cases').innerHTML=CASES[i].map(function(c){return '<article class="case '+c[0]+'"><h3>'+c[1]+'</h3><p>'+c[2]+'</p><div class="bub"><small>'+c[3]+'</small>'+c[4]+'</div><a href="'+(PREVIEW?TRY:APP+'#registro')+'" target="'+(PREVIEW?'_blank':'_self')+'" rel="noopener">Probar en SPOT</a></article>'}).join('')}
+  $('tabs').addEventListener('click',function(e){var b=e.target.closest('[data-t]');if(b)showCases(+b.dataset.t)});
+  $('tabs').addEventListener('keydown',function(e){if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;var c=+document.querySelector('#tabs [aria-selected=true]').dataset.t,n=(c+(e.key==='ArrowRight'?1:3))%4;showCases(n);document.querySelector('#tabs [data-t="'+n+'"]').focus()});
+  showCases(0);
+
+  /* Calculadora */
+  function calc(){var s=+$('cS').value,q=+$('cQ').value,b=+$('cB').value,lost=Math.round(s*b/100),rc=Math.max(1,Math.round(lost/4)),net=rc*q-49900;
+    $('vS').textContent=s;$('vQ').textContent=money(q);$('vB').textContent=b+'%';
+    $('oLost').textContent=money(lost*q);$('oLostT').textContent=lost+' socios por mes × '+money(q)+'. En un año son '+money(lost*q*12)+'.';
+    $('oRec').textContent=money(rc*q);$('oRecT').textContent=rc+' socios recuperados por mes. Con el plan Pro ($49.900) '+(net>=0?'te quedan '+money(net)+' de ganancia.':'durante los 7 días de prueba no pagás nada.');}
+  ['cS','cQ','cB'].forEach(function(id){$(id).addEventListener('input',calc)});calc();
+
+  /* Aparición al hacer scroll */
+  if('IntersectionObserver' in window&&!RM){var io=new IntersectionObserver(function(es){es.forEach(function(en){if(en.isIntersecting){en.target.classList.add('go');io.unobserve(en.target)}})},{threshold:.12});
+    document.querySelectorAll('.rv').forEach(function(el){if(el.getBoundingClientRect().top>innerHeight)io.observe(el)})}
+
+  /* Botón de WhatsApp */
+  var fab=$('fab');function ft(){fab.classList.toggle('hide',scrollY<innerHeight*.8)}addEventListener('scroll',ft,{passive:true});ft();
+})();
+</script>
+</body></html>
