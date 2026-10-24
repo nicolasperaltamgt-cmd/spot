@@ -181,6 +181,7 @@ input[type=color]{width:44px;height:36px;border:1.5px solid var(--line2);border-
 var SUPA_URL='https://daoukmklegyvlpdomtej.supabase.co';
 var SUPA_KEY='sb_publishable_LAUBF-MY51J-ulZrFEDxag_NESMo4a7';
 var SUPPORT='5491128952879';
+var WEBHOOK_URL='https://daoukmklegyvlpdomtej.supabase.co/functions/v1/spot-wa';
 
 (function(){
 'use strict';
@@ -308,11 +309,24 @@ async function loadAll(){
     sb.from('spot_messages').select('*').eq('gym_id',g).gte('sent_at',since).order('sent_at',{ascending:false}).limit(5000),
     sb.from('spot_checkins').select('id,member_id,at').eq('gym_id',g).gte('at',new Date(Date.now()-30*86400000).toISOString()).order('at',{ascending:false}).limit(10000),
     sb.from('spot_machines').select('*').eq('gym_id',g).order('name'),
-    sb.from('spot_leads').select('*').eq('gym_id',g).order('updated_at',{ascending:false}).limit(300)
+    sb.from('spot_leads').select('*').eq('gym_id',g).order('updated_at',{ascending:false}).limit(300),
+    sb.from('spot_wa').select('*').eq('gym_id',g).maybeSingle(),
+    sb.from('spot_faq').select('*').eq('gym_id',g).order('created_at',{ascending:false}).limit(300),
+    sb.from('spot_promos').select('*').eq('gym_id',g).order('created_at',{ascending:false})
   ]);
   S.members=res[0].data||[];S.msgs=res[1].data||[];S.checkins=res[2].data||[];S.machines=res[3].data||[];S.leads=res[4].data||[];
+  S.wa=res[5].data||null;S.faq=res[6].data||[];S.promos=res[7].data||[];
 }
-async function refreshLight(){if(!S.gym)return;await loadAll();if(S.view==='inicio')renderView()}
+async function refreshLight(){if(!S.gym)return;await loadAll();if(S.view==='inicio')renderView();else if(S.view==='vendedor'&&!(document.activeElement&&/^(cmpT|faqA|waTok|waPn|waSec)/.test(document.activeElement.id||''))){vVendedor($('#view'));if(curLead&&curLead.id){var fresh=S.leads.find(function(x){return x.id===curLead.id});if(fresh)openLead(fresh)}}}
+function waOn(){return !!(S.wa&&S.wa.status==='conectado')}
+/* Cuota: días que faltan para el vencimiento (negativo = vencida) */
+function todayStr(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+function daysTo(dateStr){if(!dateStr)return null;var a=new Date(dateStr+'T00:00:00'),b=new Date(todayStr()+'T00:00:00');return Math.round((a-b)/86400000)}
+function fmtDate(dateStr){if(!dateStr)return '';var p=dateStr.split('-');return p[2]+'/'+p[1]}
+function dueChip(m){var d=daysTo(m.due_date);if(d==null)return '<span class="chip c-dim">Sin fecha</span>';if(d<0)return '<span class="chip c-bad">Vencida hace '+(-d)+' d</span>';if(d<=3)return '<span class="chip c-warn">Vence '+(d===0?'hoy':'en '+d+' d')+'</span>';return '<span class="chip c-ok">Al día · '+fmtDate(m.due_date)+'</span>'}
+function addMonth(dateStr){var base=dateStr&&daysTo(dateStr)>=0?new Date(dateStr+'T00:00:00'):new Date(todayStr()+'T00:00:00');base.setMonth(base.getMonth()+1);return base.getFullYear()+'-'+('0'+(base.getMonth()+1)).slice(-2)+'-'+('0'+base.getDate()).slice(-2)}
+async function markPaid(m){var nd=addMonth(m.due_date);var r=await sb.from('spot_members').update({due_date:nd}).eq('id',m.id);if(r.error){toast(errMsg(r.error),1);return}m.due_date=nd;toast('Pago registrado. Vence el '+fmtDate(nd)+'.');renderView()}
+function dueMsg(m){var d=daysTo(m.due_date),n=String(m.name||'').split(' ')[0];return d<0?'Hola '+n+', tu cuota en '+S.gym.name+' venció el '+fmtDate(m.due_date)+'. ¿Querés que te pasemos los datos para renovarla y seguir entrenando?':'Hola '+n+', te recordamos que tu cuota en '+S.gym.name+' vence '+(d===0?'hoy':'el '+fmtDate(m.due_date))+'. ¡Te esperamos!'}
 
 /* ---------- Primer uso ---------- */
 var COLORS=['#38B5FE','#2FD08A','#C8FF00','#FF6B35','#FF3D6E','#A66CFF','#FFC531','#FFFFFF'];
@@ -412,8 +426,11 @@ function vInicio(el){
   var todo=s.risk.slice().sort(function(a,b){return new Date(a.last_visit)-new Date(b.last_visit)});
   var recent=S.checkins.slice(0,8).map(function(c){var m=S.members.find(function(x){return x.id===c.member_id});return {m:m,at:c.at}});
   var left=7-Math.floor((Date.now()-new Date(g.created_at).getTime())/86400000);
+  var dues=S.members.filter(function(m){var d=daysTo(m.due_date);return d!=null&&d<=3&&d>=-15}).sort(function(a,b){return daysTo(a.due_date)-daysTo(b.due_date)});
+  var pendQ=(S.faq||[]).filter(function(f){return f.status==='pendiente'}).length;
   el.innerHTML=(left>0?'<div class="msgbox" style="margin-bottom:14px">Te quedan <b>'+left+' día'+(left===1?'':'s')+'</b> de prueba gratis.</div>':'<div class="msgbox err" style="margin-bottom:14px">Tu prueba gratis terminó. <a href="https://wa.me/'+SUPPORT+'?text='+encodeURIComponent('Hola, quiero seguir con SPOT en '+g.name)+'" target="_blank" rel="noopener" style="color:inherit;font-weight:800">Escribinos para activar tu plan</a>.</div>')+'<div class="ph"><div><h1>Hola, '+esc(g.name)+'</h1><p>'+new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})+'</p></div><a class="btn ghost sm" href="?g='+esc(g.slug)+'&tv=1" target="_blank" rel="noopener">Pantalla para la TV</a></div>'+
    (S.members.length?'':'<div class="msgbox" style="margin-bottom:14px">Todavía no cargaste socios. <button class="btn sm" data-go="socios" style="margin-left:6px">Cargar socios</button></div>')+
+   (pendQ?'<div class="msgbox" style="margin-bottom:14px">Tu vendedor tiene <b>'+pendQ+' pregunta'+(pendQ>1?'s':'')+'</b> que no supo responder. <button class="btn sm" data-go="vendedor" style="margin-left:6px">Enseñarle</button></div>':'')+
    '<div class="kpis">'+
     '<div class="kpi main"><div class="t">Plata recuperada este mes</div><b>'+money(s.rec)+'</b><small>'+s.back+' volvieron · '+s.newM+' nuevos</small></div>'+
     '<div class="kpi"><div class="t">Mensajes enviados</div><b>'+s.sent+'</b><small>este mes</small></div>'+
@@ -429,9 +446,20 @@ function vInicio(el){
     '<section class="card"><h3 style="font-size:17px">Últimas entradas</h3>'+
      (recent.length?'<div class="list">'+recent.map(function(r){return '<div class="li"><span class="av">'+esc(initials(r.m?r.m.name:'?'))+'</span><div class="who"><strong>'+esc(r.m?r.m.name:'Socio')+'</strong><small>'+new Date(r.at).toLocaleString('es-AR',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'</small></div></div>'}).join('')+'</div>'
        :'<div class="empty" style="margin-top:10px">Cuando tus socios escaneen el QR de la entrada, los vas a ver acá.<br><br><button class="btn sm" data-go="qr">Ver mi QR</button></div>')+
-    '</section></div>';
+    '</section></div>'+
+   '<section class="card" style="margin-top:14px"><div class="between"><h3 style="font-size:17px">Cuotas por vencer</h3><span class="chip c-warn">'+dues.length+'</span></div>'+
+    '<p class="muted" style="margin:6px 0 4px;font-size:14px">Avisales antes de que venza. Cuando paguen, tocá «Pagó» y se renueva por un mes.</p>'+
+    (dues.length?'<div class="list">'+dues.slice(0,10).map(function(m){return '<div class="li"><span class="av">'+esc(initials(m.name))+'</span><div class="who"><strong>'+esc(m.name)+'</strong><small>'+dueChip(m)+'</small></div><button class="btn wa sm" data-due="'+m.id+'">Avisar</button><button class="btn ghost sm" data-paid="'+m.id+'">Pagó</button></div>'}).join('')+'</div>'
+      :'<div class="empty">Ninguna cuota vence en los próximos 3 días. Cargá la fecha de vencimiento de cada socio en «Socios».</div>')+
+   '</section>';
   $$('[data-go]',el).forEach(function(b){b.onclick=function(){go(b.dataset.go)}});
   $$('[data-send]',el).forEach(function(b){b.onclick=function(){sendRecover(S.members.find(function(m){return m.id===b.dataset.send}),b)}});
+  bindDue(el);
+}
+function bindDue(el){
+  $$('[data-due]',el).forEach(function(b){b.onclick=function(){var m=S.members.find(function(x){return x.id===b.dataset.due});window.open(waLink(m.phone,dueMsg(m)),'_blank','noopener');toast('Se abrió WhatsApp con el aviso listo')}});
+  $$('[data-paid]',el).forEach(function(b){b.onclick=function(){b.disabled=true;markPaid(S.members.find(function(x){return x.id===b.dataset.paid}))}});
+  $$('[data-duedate]',el).forEach(function(inp){inp.onchange=async function(){var m=S.members.find(function(x){return x.id===inp.dataset.duedate});var v=inp.value||null;var r=await sb.from('spot_members').update({due_date:v}).eq('id',m.id);if(r.error){toast(errMsg(r.error),1);return}m.due_date=v;toast(v?'Vence el '+fmtDate(v):'Fecha borrada')}});
 }
 
 /* ---------- Socios ---------- */
@@ -443,21 +471,23 @@ function vSocios(el){
   el.innerHTML='<div class="ph"><div><h1>Socios</h1><p>'+S.members.length+' cargados</p></div></div>'+
    '<div class="grid2">'+
     '<section class="card stack"><h3 style="font-size:17px">Subí tu Excel</h3>'+
-      '<label class="drop" id="drop" for="file"><strong>Elegí o arrastrá el archivo</strong><small class="muted">.xlsx, .xls o .csv con nombre y teléfono. Lo leemos solo.</small><input id="file" type="file" accept=".xlsx,.xls,.csv,.ods" hidden></label>'+
+      '<label class="drop" id="drop" for="file"><strong>Elegí o arrastrá el archivo</strong><small class="muted">.xlsx, .xls o .csv con nombre y teléfono (y si querés, vencimiento). Lo leemos solo.</small><input id="file" type="file" accept=".xlsx,.xls,.csv,.ods" hidden></label>'+
       '<div id="impRes"></div></section>'+
     '<section class="card"><h3 style="font-size:17px">Agregar un socio</h3>'+
       '<form id="addF" class="stack" style="margin-top:12px" novalidate><label class="field"><span>Nombre y apellido</span><input type="text" id="adN" maxlength="80" required></label>'+
-      '<label class="field"><span>WhatsApp</span><input type="tel" id="adP" required placeholder="11 2345-6789"></label><button class="btn" type="submit">Agregar</button></form></section>'+
+      '<label class="field"><span>WhatsApp</span><input type="tel" id="adP" required placeholder="11 2345-6789"></label>'+
+      '<label class="field"><span>Vence la cuota (opcional)</span><input type="date" id="adD"></label><button class="btn" type="submit">Agregar</button></form></section>'+
    '</div>'+
    '<section class="card" style="margin-top:14px">'+
     '<div class="between"><div class="rowx" role="group" aria-label="Filtrar">'+[['todos','Todos'],['riesgo','En riesgo'],['enviado','Mensaje enviado'],['volvio','Volvieron'],['activo','Activos'],['sin','Sin visitas']].map(function(f){return '<button type="button" class="btn sm '+(socFilter===f[0]?'':'ghost')+'" data-f="'+f[0]+'">'+f[1]+' · '+counts[f[0]]+'</button>'}).join('')+'</div></div>'+
     '<input type="search" id="socQ" placeholder="Buscar por nombre o teléfono" value="'+esc(socQ)+'" style="margin:12px 0" aria-label="Buscar socio">'+
-    (list.length?'<div class="tw"><table><thead><tr><th>Socio</th><th>WhatsApp</th><th>Última visita</th><th>Estado</th><th></th></tr></thead><tbody>'+
-      list.slice(0,300).map(function(r){var m=r.m,d=daysSince(m.last_visit);return '<tr><td><strong>'+esc(m.name)+'</strong></td><td style="font-family:var(--mono);font-size:13px">'+esc(m.phone)+'</td><td>'+(d==null?'—':(d===0?'Hoy':'Hace '+d+' días'))+'</td><td><span class="chip '+r.st.c+'">'+r.st.t+'</span></td><td style="white-space:nowrap;text-align:right"><button class="btn wa sm" data-send="'+m.id+'">Escribir</button> <button class="btn ghost sm" data-in="'+m.id+'" title="Registrar una entrada a mano">Entró</button> <button class="btn danger sm" data-del="'+m.id+'" aria-label="Borrar '+esc(m.name)+'">Borrar</button></td></tr>'}).join('')+
+    (list.length?'<div class="tw"><table><thead><tr><th>Socio</th><th>WhatsApp</th><th>Última visita</th><th>Estado</th><th>Cuota</th><th></th></tr></thead><tbody>'+
+      list.slice(0,300).map(function(r){var m=r.m,d=daysSince(m.last_visit);return '<tr><td><strong>'+esc(m.name)+'</strong></td><td style="font-family:var(--mono);font-size:13px">'+esc(m.phone)+'</td><td>'+(d==null?'—':(d===0?'Hoy':'Hace '+d+' días'))+'</td><td><span class="chip '+r.st.c+'">'+r.st.t+'</span></td><td style="white-space:nowrap">'+dueChip(m)+' <input type="date" data-duedate="'+m.id+'" value="'+esc(m.due_date||'')+'" aria-label="Vencimiento de '+esc(m.name)+'" style="min-height:32px;width:auto;padding:2px 6px;font-size:13px"> <button class="btn ghost sm" data-paid="'+m.id+'">Pagó</button></td><td style="white-space:nowrap;text-align:right"><button class="btn wa sm" data-send="'+m.id+'">Escribir</button> <button class="btn ghost sm" data-in="'+m.id+'" title="Registrar una entrada a mano">Entró</button> <button class="btn danger sm" data-del="'+m.id+'" aria-label="Borrar '+esc(m.name)+'">Borrar</button></td></tr>'}).join('')+
       '</tbody></table></div>'+(list.length>300?'<p class="muted" style="font-size:13px">Mostrando 300 de '+list.length+'. Usá el buscador.</p>':'')
      :'<div class="empty">'+(S.members.length?'No hay socios con ese filtro.':'Todavía no hay socios. Subí tu Excel o agregalos a mano.')+'</div>')+
    '</section>';
   $$('[data-f]',el).forEach(function(b){b.onclick=function(){socFilter=b.dataset.f;vSocios(el)}});
+  bindDue(el);
   var q=$('#socQ',el);q.oninput=function(){socQ=q.value;var pos=q.selectionStart;vSocios(el);var n=$('#socQ',el);n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}};
   $$('[data-send]',el).forEach(function(b){b.onclick=function(){sendRecover(S.members.find(function(m){return m.id===b.dataset.send}),b)}});
   $$('[data-in]',el).forEach(function(b){b.onclick=async function(){b.disabled=true;var m=S.members.find(function(x){return x.id===b.dataset.in});
@@ -469,7 +499,7 @@ function vSocios(el){
     S.members=S.members.filter(function(m){return m.id!==b.dataset.del});toast('Socio borrado');vSocios(el)}});
   $('#addF',el).onsubmit=async function(e){e.preventDefault();var n=$('#adN').value.trim(),p=normPhone($('#adP').value);
     if(!n){toast('Escribí el nombre',1);return}if(p.length<8){toast('Revisá el número de WhatsApp',1);return}
-    var r=await sb.from('spot_members').insert({gym_id:S.gym.id,name:n,phone:p}).select().single();
+    var r=await sb.from('spot_members').insert({gym_id:S.gym.id,name:n,phone:p,due_date:$('#adD').value||null}).select().single();
     if(r.error){toast(/duplicate/.test(r.error.message)?'Ese número ya está cargado':errMsg(r.error),1);return}
     S.members.push(r.data);S.members.sort(function(a,b){return a.name.localeCompare(b.name)});toast(n+' agregado');vSocios(el)};
   var file=$('#file',el),drop=$('#drop',el);
@@ -481,27 +511,36 @@ function vSocios(el){
 function parseRows(rows){
   rows=rows.map(function(r){return (r||[]).map(function(c){return c==null?'':String(c).trim()})}).filter(function(r){return r.some(Boolean)});
   if(!rows.length)return [];
-  var h=-1,ni=-1,ai=-1,ti=-1;
+  var h=-1,ni=-1,ai=-1,ti=-1,di=-1;
   for(var y=0;y<Math.min(10,rows.length);y++){rows[y].forEach(function(v,x){var s=v.toLowerCase();
     if(ni<0&&/^(nombre|nombre y apellido|nombres?|socio|cliente|alumno)/.test(s))ni=x;else if(ai<0&&/^apellido/.test(s))ai=x;
-    if(ti<0&&/(tel|cel|whats|m[oó]vil|contacto|n[uú]mero)/.test(s))ti=x});if(ni>=0||ti>=0){h=y;break}}
+    if(ti<0&&/(tel|cel|whats|m[oó]vil|contacto|n[uú]mero)/.test(s))ti=x;if(di<0&&/(venc|vence|vto|pr[oó]ximo pago|pago hasta|hasta)/.test(s))di=x});if(ni>=0||ti>=0){h=y;break}}
   var body=rows.slice(h+1),w=Math.max.apply(null,body.map(function(r){return r.length}));
   if(ti<0){for(var x=0;x<w;x++){if(body.filter(function(r){return digits(r[x]).length>=8}).length>body.length/2){ti=x;break}}}
   if(ni<0){for(var x2=0;x2<w;x2++){if(x2!==ti&&body.filter(function(r){return /[a-záéíóúñ]{2,}/i.test(r[x2]||'')}).length>body.length/2){ni=x2;break}}}
   if(ni<0||ti<0)return null;
   var out=[],seen={};
-  body.forEach(function(r){var n=(r[ni]||'')+(ai>=0&&r[ai]?' '+r[ai]:''),p=normPhone(r[ti]);n=n.trim().slice(0,80);if(n&&p.length>=8&&p.length<=15&&!seen[p]){seen[p]=1;out.push({name:n,phone:p})}});
+  body.forEach(function(r){var n=(r[ni]||'')+(ai>=0&&r[ai]?' '+r[ai]:''),p=normPhone(r[ti]);n=n.trim().slice(0,80);if(n&&p.length>=8&&p.length<=15&&!seen[p]){seen[p]=1;out.push({name:n,phone:p,due_date:di>=0?parseDate(r[di]):null})}});
   return out;
 }
+/* Fechas del Excel: 15/11/2026, 15-11-26, 2026-11-15 o número de serie */
+function parseDate(v){v=String(v||'').trim();if(!v)return null;var m;
+  if(/^\d{5}$/.test(v)){var d=new Date(Math.round((+v-25569)*86400000));return d.toISOString().slice(0,10)}
+  if((m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)))return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+  if((m=v.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/))){var y=m[3].length===2?'20'+m[3]:m[3];var dd=+m[1],mm=+m[2];if(mm>12&&dd<=12){var t=dd;dd=mm;mm=t}if(mm<1||mm>12||dd<1||dd>31)return null;return y+'-'+('0'+mm).slice(-2)+'-'+('0'+dd).slice(-2)}
+  return null}
 function importFile(f){
   var box=$('#impRes');box.innerHTML='<div class="msgbox">Leyendo '+esc(f.name)+'…</div>';
   var rd=new FileReader();
   rd.onload=async function(){
     try{var wb=XLSX.read(new Uint8Array(rd.result),{type:'array'}),list=null;
-      for(var i=0;i<wb.SheetNames.length;i++){list=parseRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[i]],{header:1,defval:'',raw:false}));if(list&&list.length)break}
+      for(var i=0;i<wb.SheetNames.length;i++){list=parseRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[i]],{header:1,defval:'',raw:false,dateNF:'dd/mm/yyyy'}));if(list&&list.length)break}
       if(!list||!list.length){box.innerHTML='<div class="msgbox err">No encontramos socios en '+esc(f.name)+'. El archivo necesita una columna con el nombre y otra con el teléfono.</div>';return}
       var have={};S.members.forEach(function(m){have[m.phone]=1});
-      var nuevos=list.filter(function(x){return !have[x.phone]}).map(function(x){return {gym_id:S.gym.id,name:x.name,phone:x.phone}});
+      var nuevos=list.filter(function(x){return !have[x.phone]}).map(function(x){return {gym_id:S.gym.id,name:x.name,phone:x.phone,due_date:x.due_date||null}});
+      var upd=list.filter(function(x){return have[x.phone]&&x.due_date});
+      for(var u=0;u<upd.length;u++){var mm=S.members.find(function(z){return z.phone===upd[u].phone});if(mm&&mm.due_date!==upd[u].due_date)await sb.from('spot_members').update({due_date:upd[u].due_date}).eq('id',mm.id)}
+      if(!nuevos.length&&upd.length){await loadAll();vSocios($('#view'));$('#impRes').innerHTML='<div class="msgbox">Actualizamos el vencimiento de '+upd.length+' socios.</div>';return}
       if(!nuevos.length){box.innerHTML='<div class="msgbox">Los '+list.length+' socios de '+esc(f.name)+' ya estaban cargados.</div>';return}
       box.innerHTML='<div class="msgbox">Guardando '+nuevos.length+' socios…</div>';
       for(var k=0;k<nuevos.length;k+=500){var r=await sb.from('spot_members').upsert(nuevos.slice(k,k+500),{onConflict:'gym_id,phone',ignoreDuplicates:true});if(r.error)throw r.error}
@@ -537,14 +576,85 @@ function vVendedor(el){
      '<label class="field"><span>Dirección</span><textarea id="agAd" maxlength="300" placeholder="Av. Siempreviva 742, Luis Guillón">'+esc(g.address||'')+'</textarea></label>'+
     '</div><label class="field"><span>Otra información (actividades, promos vigentes, lo que no tiene el gym)</span><textarea id="agEx" maxlength="1500" placeholder="Ej: Tenemos musculación y funcional. No tenemos pileta. Promo octubre: matrícula gratis.">'+esc(g.extra_info||'')+'</textarea></label>'+
     '<button class="btn" type="submit" style="align-self:flex-start">Guardar</button></form>'+
-    '<div class="msgbox">Para que responda solo en tu WhatsApp real hace falta conectar WhatsApp Business (API de Meta). Mientras tanto podés probarlo acá y ver cómo vende. Pedinos la conexión por WhatsApp.</div>'+
-   '</section>';
+   '</section>'+
+   vFaqHTML()+vWaHTML();
   $('#agOn').onchange=async function(){var v=this.checked;var r=await sb.from('spot_gyms').update({agent_on:v}).eq('id',g.id);if(r.error){toast(errMsg(r.error),1);this.checked=!v;return}g.agent_on=v;toast(v?'Vendedor activado':'Vendedor pausado')};
   $('#agF').onsubmit=async function(e){e.preventDefault();var u={prices:$('#agPr').value.trim()||'Consultar.',schedule:$('#agHo').value.trim()||'Consultar.',trial_slots:$('#agTr').value.trim()||'Consultar.',address:$('#agAd').value.trim()||null,extra_info:$('#agEx').value.trim()||null};
     var r=await sb.from('spot_gyms').update(u).eq('id',g.id);if(r.error){toast(errMsg(r.error),1);return}Object.assign(g,u);toast('Guardado. Tu vendedor ya usa esta información.')};
+  bindFaq(el);bindWa(el);
   $$('[data-lead]',el).forEach(function(b){b.onclick=function(){openLead(S.leads.find(function(l){return l.id===b.dataset.lead}))}});
   $('#newTest').onclick=function(){var t=S.leads.find(function(l){return l.phone==='0000000000'});if(t)openLead(t);else{curLead={id:null,phone:'0000000000',status:'nuevo',name:null};leadMsgs=[];renderConv()}};
   if(curLead)renderConv();else $('#conv').innerHTML='<div class="empty" style="margin:auto">Elegí una conversación o tocá «Probar» para chatear con tu vendedor como si fueras un cliente.</div>';
+}
+/* Preguntas que el vendedor no supo: el dueño responde una vez y el vendedor aprende */
+function vFaqHTML(){
+  var pend=(S.faq||[]).filter(function(f){return f.status==='pendiente'}),done=(S.faq||[]).filter(function(f){return f.status==='respondida'});
+  return '<section class="card stack" style="margin-top:14px" id="faqCard"><div class="between"><div><h3 style="font-size:17px">Preguntas que no supo responder</h3><p class="muted" style="margin:4px 0 0;font-size:14px">Respondé una vez: se la mandamos al cliente y tu vendedor la aprende para los próximos.</p></div><span class="chip '+(pend.length?'c-bad':'c-ok')+'">'+pend.length+' pendiente'+(pend.length===1?'':'s')+'</span></div>'+
+   (pend.length?pend.map(function(f){var l=S.leads.find(function(x){return x.id===f.lead_id});return '<div class="card" style="background:var(--bg2);padding:14px"><div class="between"><strong>«'+esc(f.question)+'»</strong><span class="muted" style="font-size:12.5px">'+esc(l?(l.phone==='0000000000'?'Prueba (vos)':(l.name||'+'+l.phone)):'')+' · '+new Date(f.created_at).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+'</span></div>'+
+     '<form class="composer" data-faq="'+f.id+'" style="margin-top:8px"><input type="text" id="faqA'+f.id.slice(0,8)+'" maxlength="1000" placeholder="Tu respuesta, ej: Sí, hay boxeo martes y jueves a las 20 h." aria-label="Respuesta"><button class="btn" type="submit">Responder y enseñar</button></form></div>'}).join('')
+    :'<div class="empty">Por ahora sabe responder todo lo que le preguntaron.</div>')+
+   (done.length?'<details><summary style="font-size:14.5px">Lo que ya aprendió ('+done.length+')</summary><div class="list" style="margin-top:8px">'+done.map(function(f){return '<div class="li"><div class="who"><strong style="white-space:normal">'+esc(f.question)+'</strong><small style="white-space:normal">'+esc(f.answer)+'</small></div><button class="btn danger sm" data-faqdel="'+f.id+'">Olvidar</button></div>'}).join('')+'</div></details>':'')+
+  '</section>';
+}
+function bindFaq(el){
+  $$('[data-faq]',el).forEach(function(fm){fm.onsubmit=async function(e){e.preventDefault();var inp=fm.querySelector('input'),a=inp.value.trim();if(!a){toast('Escribí la respuesta',1);return}
+    var btn=fm.querySelector('button');btn.disabled=true;
+    var f=S.faq.find(function(x){return x.id===fm.dataset.faq});
+    var r=await sb.from('spot_faq').update({answer:a,status:'respondida',answered_at:new Date().toISOString()}).eq('id',f.id);
+    if(r.error){toast(errMsg(r.error),1);btn.disabled=false;return}
+    f.answer=a;f.status='respondida';
+    var l=S.leads.find(function(x){return x.id===f.lead_id});
+    if(l&&l.phone!=='0000000000'){
+      var back=l.trial_at?'clase_agendada':'interesado';
+      await sb.from('spot_leads').update({status:back,updated_at:new Date().toISOString()}).eq('id',l.id);l.status=back;
+      if(waOn()){var s2=await sb.functions.invoke('spot-wa',{body:{action:'send',phone:l.phone,text:a}});if(s2.error||!s2.data.ok)toast('Aprendido. No se pudo mandar por WhatsApp: '+((s2.data&&s2.data.error)||'error'),1);else toast('Aprendido y enviado al cliente por WhatsApp')}
+      else{await sb.from('spot_lead_msgs').insert({lead_id:l.id,gym_id:S.gym.id,role:'dueño',body:a});window.open(waLink(l.phone,a),'_blank','noopener');toast('Aprendido. Se abrió WhatsApp para mandarle la respuesta')}
+    }else toast('¡Aprendido! La próxima vez lo responde solo.');
+    vVendedor($('#view'))}});
+  $$('[data-faqdel]',el).forEach(function(b){var armed=false;b.onclick=async function(){if(!armed){armed=true;b.textContent='¿Seguro?';setTimeout(function(){armed=false;b.textContent='Olvidar'},3000);return}
+    var r=await sb.from('spot_faq').delete().eq('id',b.dataset.faqdel);if(r.error){toast(errMsg(r.error),1);return}S.faq=S.faq.filter(function(x){return x.id!==b.dataset.faqdel});vVendedor($('#view'))}});
+}
+/* Conectar el WhatsApp real del gimnasio (API oficial de Meta) */
+function vWaHTML(){
+  var w=S.wa,on=waOn(),st=w?(w.status==='conectado'?['Conectado','c-ok']:w.status==='error'?['Con error','c-bad']:['Falta verificar','c-warn']):['Sin conectar','c-dim'];
+  return '<section class="card stack" style="margin-top:14px" id="waCard"><div class="between"><div><h3 style="font-size:17px">Conectar tu WhatsApp</h3><p class="muted" style="margin:4px 0 0;font-size:14px">Con la API oficial de WhatsApp, el vendedor responde solo en el número del gimnasio, las 24 h.</p></div><span class="chip '+st[1]+'">'+st[0]+(w&&w.display_phone?' · '+esc(w.display_phone):'')+'</span></div>'+
+   (w&&w.status==='error'&&w.last_error?'<div class="msgbox err">'+esc(w.last_error)+'</div>':'')+
+   '<details'+(on?'':' open')+'><summary style="font-size:14.5px">Cómo conectarlo (10 minutos, una sola vez)</summary><ol style="margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14.5px;color:var(--muted)">'+
+    '<li>Entrá a <b>developers.facebook.com</b> con tu Facebook, tocá <b>Mis apps → Crear app</b> y elegí el caso de uso <b>WhatsApp</b> (tipo Negocios).</li>'+
+    '<li>En <b>WhatsApp → Configuración de la API</b> agregá el número del gimnasio y verificalo con el código por SMS. Ese número no puede estar abierto en la app común de WhatsApp.</li>'+
+    '<li>Copiá el <b>Identificador del número de teléfono</b> y pegalo abajo.</li>'+
+    '<li>En <b>Configuración del negocio → Usuarios del sistema</b> creá un usuario administrador, tocá <b>Generar token</b>, elegí tu app y los permisos <b>whatsapp_business_messaging</b> y <b>whatsapp_business_management</b>, sin vencimiento. Pegá el token abajo.</li>'+
+    '<li>Guardá. Después, en <b>WhatsApp → Configuración → Webhook</b>, pegá la URL y el token de verificación que te mostramos acá, tocá <b>Verificar y guardar</b> y suscribite al campo <b>messages</b>.</li>'+
+    '<li>Tocá <b>Probar conexión</b>. Listo: escribile al número del gimnasio desde otro celular y mirá cómo responde.</li></ol></details>'+
+   '<form id="waF" class="stack" novalidate><div class="grid2">'+
+    '<label class="field"><span>Identificador del número de teléfono</span><input type="text" id="waPn" inputmode="numeric" value="'+esc(w?w.phone_number_id:'')+'" placeholder="Ej: 109876543210987"></label>'+
+    '<label class="field"><span>Token de acceso</span><input type="password" id="waTok" value="" placeholder="'+(w?'Guardado. Pegá uno nuevo solo si lo cambiaste':'EAAG…')+'" autocomplete="off"></label>'+
+   '</div><label class="field"><span>Clave secreta de la app (opcional, más seguridad)</span><input type="password" id="waSec" value="" placeholder="'+(w&&w.app_secret?'Guardada':'Configuración de la app → Básica → Clave secreta')+'" autocomplete="off"></label>'+
+   '<div class="rowx"><button class="btn" type="submit" id="waSave">Guardar</button>'+(w?'<button class="btn ghost" type="button" id="waTest">Probar conexión</button><button class="btn danger sm" type="button" id="waDel">Desconectar</button>':'')+'</div></form>'+
+   (w?'<div class="grid2"><div class="field"><span>URL del webhook (pegala en Meta)</span><div class="prevmsg" id="waUrl" style="user-select:all;font-family:var(--mono);font-size:13px">'+WEBHOOK_URL+'</div><button class="btn ghost sm" type="button" data-copy="waUrl" style="align-self:flex-start">Copiar</button></div>'+
+       '<div class="field"><span>Token de verificación (pegalo en Meta)</span><div class="prevmsg" id="waVt" style="user-select:all;font-family:var(--mono);font-size:13px">'+esc(w.verify_token)+'</div><button class="btn ghost sm" type="button" data-copy="waVt" style="align-self:flex-start">Copiar</button></div></div>'+
+       (w.last_inbound_at?'<p class="muted" style="margin:0;font-size:13.5px">Último mensaje recibido: '+new Date(w.last_inbound_at).toLocaleString('es-AR')+'</p>':''):'')+
+   '<p class="muted" style="margin:0;font-size:13px">Meta no cobra las respuestas a quien le escribe al gimnasio hasta 1.000 mensajes por mes. Los mensajes que inicia el gimnasio (recordatorios, promos) se cobran aparte según la tarifa de Meta.</p>'+
+  '</section>';
+}
+function bindWa(el){
+  var f=$('#waF',el);if(!f)return;
+  f.onsubmit=async function(e){e.preventDefault();var pn=digits($('#waPn').value),tok=$('#waTok').value.trim(),sec=$('#waSec').value.trim();
+    if(pn.length<5){toast('Pegá el identificador del número de teléfono',1);return}
+    if(!S.wa&&tok.length<20){toast('Pegá el token de acceso',1);return}
+    var row={gym_id:S.gym.id,phone_number_id:pn,updated_at:new Date().toISOString(),status:'pendiente'};if(tok)row.token=tok;if(sec)row.app_secret=sec;
+    var b=$('#waSave');b.disabled=true;
+    var r=S.wa?await sb.from('spot_wa').update(row).eq('gym_id',S.gym.id).select().single():await sb.from('spot_wa').insert(row).select().single();
+    b.disabled=false;if(r.error){toast(/duplicate/.test(r.error.message)?'Ese número ya está conectado en otro gimnasio':errMsg(r.error),1);return}
+    S.wa=r.data;toast('Guardado. Ahora configurá el webhook en Meta y tocá «Probar conexión».');vVendedor($('#view'));setTimeout(function(){var c=$('#waCard');if(c)c.scrollIntoView({block:'start'})},50)};
+  if($('#waTest',el))$('#waTest',el).onclick=async function(){var b=this;b.disabled=true;b.textContent='Probando…';
+    var r=await sb.functions.invoke('spot-wa',{body:{action:'test'}});b.disabled=false;b.textContent='Probar conexión';
+    if(r.error||!r.data.ok){toast('No conecta: '+((r.data&&r.data.error)||errMsg(r.error)),1);await loadAll();vVendedor($('#view'));return}
+    toast('¡Conectado! Número '+(r.data.phone||'')+'. Tu vendedor ya responde solo.');await loadAll();vVendedor($('#view'))};
+  if($('#waDel',el)){var armed=false;$('#waDel',el).onclick=async function(){var b=this;if(!armed){armed=true;b.textContent='¿Seguro?';setTimeout(function(){armed=false;b.textContent='Desconectar'},3000);return}
+    var r=await sb.from('spot_wa').delete().eq('gym_id',S.gym.id);if(r.error){toast(errMsg(r.error),1);return}S.wa=null;toast('WhatsApp desconectado');vVendedor($('#view'))}}
+  $$('[data-copy]',el).forEach(function(b){b.onclick=function(){var t=$('#'+b.dataset.copy).textContent;try{navigator.clipboard.writeText(t).then(function(){b.textContent='Copiado'},sel)}catch(e){sel()}
+    function sel(){var rg=document.createRange();rg.selectNodeContents($('#'+b.dataset.copy));var sl=getSelection();sl.removeAllRanges();sl.addRange(rg);b.textContent='Seleccionado'}}});
 }
 async function openLead(l){curLead=l;$$('[data-lead]').forEach(function(b){b.setAttribute('aria-current',b.dataset.lead===l.id)});
   $('#conv').innerHTML='<div class="loading" style="min-height:300px"><div class="spin"></div></div>';
@@ -561,12 +671,17 @@ function renderConv(){
   if($('#fup'))$('#fup').onclick=async function(){var b=this;b.disabled=true;b.textContent='Escribiendo…';
     try{var r=await sb.functions.invoke('spot-agent',{body:{phone:l.phone,mode:'followup'}});if(r.error)throw r.error;if(r.data.error)throw new Error(r.data.error);
       curLead=r.data.lead;leadMsgs.push({role:'vendedor',body:r.data.reply,at:new Date().toISOString()});renderConv();
-      window.open(waLink(l.phone,r.data.reply),'_blank','noopener');toast('Seguimiento listo: se abrió WhatsApp para enviarlo')}
+      if(waOn()){var s3=await sb.functions.invoke('spot-wa',{body:{action:'send',phone:l.phone,text:r.data.reply}});if(s3.error||!s3.data.ok)toast((s3.data&&s3.data.error)||'No se pudo enviar',1);else toast('Seguimiento enviado por WhatsApp')}
+      else{window.open(waLink(l.phone,r.data.reply),'_blank','noopener');toast('Seguimiento listo: se abrió WhatsApp para enviarlo')}}
     catch(err){toast('No se pudo generar: '+errMsg(err),1);b.disabled=false;b.textContent='Seguimiento'}};
   if($('#stSel'))$('#stSel').onchange=async function(){var v=this.value;var r=await sb.from('spot_leads').update({status:v,updated_at:new Date().toISOString()}).eq('id',l.id);if(r.error){toast(errMsg(r.error),1);return}l.status=v;toast('Estado actualizado');vVendedor($('#view'))};
   $('#cmp').onsubmit=async function(e){e.preventDefault();var t=$('#cmpT').value.trim();if(!t)return;
     var b=$('#cmpB');b.disabled=true;$('#cmpT').value='';
-    if(!test){ // el dueño responde a mano: se guarda y se abre WhatsApp
+    if(!test&&waOn()){ // WhatsApp conectado: sale directo desde el número del gimnasio
+      var s1=await sb.functions.invoke('spot-wa',{body:{action:'send',phone:l.phone,text:t}});b.disabled=false;
+      if(s1.error||!s1.data.ok){toast((s1.data&&s1.data.error)||errMsg(s1.error),1);return}
+      leadMsgs.push({role:'dueño',body:t,at:new Date().toISOString()});renderConv();toast('Enviado por WhatsApp');return}
+    if(!test){ // sin WhatsApp conectado: se guarda y se abre WhatsApp
       var r0=await sb.from('spot_lead_msgs').insert({lead_id:l.id,gym_id:S.gym.id,role:'dueño',body:t}).select().single();b.disabled=false;
       if(r0.error){toast(errMsg(r0.error),1);return}leadMsgs.push(r0.data);window.open(waLink(l.phone,t),'_blank','noopener');renderConv();return}
     leadMsgs.push({role:'cliente',body:t,at:new Date().toISOString()});renderConv();
@@ -575,6 +690,7 @@ function renderConv(){
       if(r.error)throw r.error;var d=r.data;if(d.error)throw new Error(d.error);
       curLead=d.lead;var i=S.leads.findIndex(function(x){return x.id===d.lead.id});if(i>=0)S.leads[i]=d.lead;else S.leads.unshift(d.lead);
       leadMsgs.push({role:'vendedor',body:d.reply,at:new Date().toISOString()});
+      if(d.question){await loadAll();toast('No sabía eso: te dejó la pregunta abajo para que le enseñes')}
       vVendedor($('#view'));
     }catch(err){ty.remove();toast('El vendedor no respondió: '+errMsg(err),1);$('#cmpB').disabled=false}
   };
@@ -627,6 +743,16 @@ function vGym(el){
    '</section>'+
    '<div class="rowx"><button class="btn" type="submit" id="gBtn">Guardar cambios</button><a class="btn ghost" href="?g='+esc(g.slug)+'" target="_blank" rel="noopener">Ver la app del socio</a></div>'+
   '</form>'+
+  '<section class="card stack" style="margin-top:14px"><div><h3 style="font-size:17px">Promos y premios</h3><p class="muted" style="margin:4px 0 0;font-size:14px">Tus socios los ven en su app. Los premios se desbloquean con los puntos que suman al escanear (10 por visita).</p></div>'+
+   '<form id="prF" class="stack" novalidate><div class="grid3">'+
+    '<label class="field"><span>Tipo</span><select id="prK"><option value="promo">Promo</option><option value="premio">Premio por puntos</option></select></label>'+
+    '<label class="field"><span>Título</span><input type="text" id="prT" maxlength="80" placeholder="Ej: 2x1 trayendo un amigo"></label>'+
+    '<label class="field" id="prPW"><span>Hasta (opcional)</span><input type="date" id="prU"></label>'+
+   '</div><label class="field"><span>Detalle (opcional)</span><input type="text" id="prD" maxlength="300" placeholder="Ej: Válido de lunes a jueves de 14 a 17 h."></label>'+
+   '<button class="btn" type="submit" style="align-self:flex-start">Agregar</button></form>'+
+   ((S.promos||[]).length?'<div class="list">'+S.promos.map(function(p){return '<div class="li"><span class="chip '+(p.kind==='premio'?'c-acc':'c-ok')+'">'+(p.kind==='premio'?p.points+' pts':'Promo')+'</span><div class="who"><strong>'+esc(p.title)+'</strong><small>'+esc(p.detail||'')+(p.until?' · hasta el '+fmtDate(p.until):'')+(p.active?'':' · pausada')+'</small></div><button class="btn ghost sm" data-prtog="'+p.id+'">'+(p.active?'Pausar':'Activar')+'</button><button class="btn danger sm" data-prdel="'+p.id+'">Borrar</button></div>'}).join('')+'</div>'
+     :'<div class="empty">Todavía no cargaste promos ni premios. Ej: «Batido de regalo» por 100 puntos.</div>')+
+  '</section>'+
   '<section class="card" style="margin-top:14px"><h3 style="font-size:17px">Tu cuenta</h3><p class="muted" style="margin:6px 0 12px">'+esc(S.user.email)+' · Prueba gratis de 7 días desde el '+new Date(g.created_at).toLocaleDateString('es-AR')+'.</p><div class="rowx"><a class="btn ghost sm" href="https://wa.me/'+SUPPORT+'?text='+encodeURIComponent('Hola, tengo una consulta sobre SPOT ('+g.name+')')+'" target="_blank" rel="noopener">Soporte por WhatsApp</a><button class="btn ghost sm" id="gOut">Salir</button></div></section>';
   function prev(){$('#gMP').textContent=fillMsg($('#gM').value,{name:'Martina Gómez',last_visit:new Date(Date.now()-12*86400000)},{name:$('#gN').value||g.name})}
   prev();$('#gM').oninput=prev;$('#gN').oninput=prev;
@@ -635,6 +761,13 @@ function vGym(el){
   function mk(){$$('#gSw .sw').forEach(function(x){x.setAttribute('aria-pressed',x.dataset.c.toLowerCase()===color.toLowerCase())})}
   $('#gS').oninput=function(){this.value=slugify(this.value)};
   $('#gOut').onclick=function(){clearInterval(S.poll);sb.auth.signOut()};
+  $('#prK').onchange=function(){$('#prPW').innerHTML=this.value==='premio'?'<span>Puntos necesarios</span><input type="number" id="prP" min="10" step="10" value="100">':'<span>Hasta (opcional)</span><input type="date" id="prU">'};
+  $('#prF').onsubmit=async function(e){e.preventDefault();var k=$('#prK').value,t=$('#prT').value.trim();if(t.length<2){toast('Escribí el título',1);return}
+    var row={gym_id:g.id,kind:k,title:t,detail:$('#prD').value.trim()||null};if(k==='premio'){row.points=Math.max(1,+($('#prP')||{}).value||100)}else{row.until=($('#prU')||{}).value||null}
+    var r=await sb.from('spot_promos').insert(row).select().single();if(r.error){toast(errMsg(r.error),1);return}S.promos.unshift(r.data);toast(k==='premio'?'Premio agregado':'Promo agregada');vGym(el)};
+  $$('[data-prtog]',el).forEach(function(b){b.onclick=async function(){var p=S.promos.find(function(x){return x.id===b.dataset.prtog});var r=await sb.from('spot_promos').update({active:!p.active}).eq('id',p.id);if(r.error){toast(errMsg(r.error),1);return}p.active=!p.active;vGym(el)}});
+  $$('[data-prdel]',el).forEach(function(b){var armed=false;b.onclick=async function(){if(!armed){armed=true;b.textContent='¿Seguro?';setTimeout(function(){armed=false;b.textContent='Borrar'},3000);return}
+    var r=await sb.from('spot_promos').delete().eq('id',b.dataset.prdel);if(r.error){toast(errMsg(r.error),1);return}S.promos=S.promos.filter(function(x){return x.id!==b.dataset.prdel});vGym(el)}});
   $('#gLogo').onchange=async function(){var f=this.files[0];this.value='';if(!f)return;if(f.size>2*1024*1024){toast('La imagen pesa más de 2 MB',1);return}
     toast('Subiendo logo…');var path=S.user.id+'/logo-'+Date.now()+'.'+(f.type.split('/')[1]||'png');
     var up=await sb.storage.from('spot-logos').upload(path,f,{upsert:true,contentType:f.type});if(up.error){toast(errMsg(up.error),1);return}
@@ -661,7 +794,26 @@ async function publicView(slug,machineId,tv){
   try{data=await load()}catch(e){root.innerHTML='<div class="pub"><div class="empty">No pudimos cargar el gimnasio. Revisá tu conexión.</div></div>';return}
   if(!data){root.innerHTML='<div class="pub"><div class="empty">No encontramos este gimnasio. Revisá el link o el QR.</div></div>';return}
   setAccent(data.color);document.title=data.name+' · SPOT';
-  var result=null;
+  var result=null,me=null;
+  async function loadMe(){var ph=getPhone();if(!ph){me=null;return}try{var r=await sb.rpc('spot_member_portal',{p_slug:slug,p_phone:ph});me=r.data&&r.data.ok?r.data:null}catch(e){me=null}}
+  await loadMe();
+  function meHTML(){
+    if(!me)return '';
+    var d=me.days_left,cuota=d==null?'<span class="chip c-dim">Consultá en recepción</span>':(d<0?'<span class="chip c-bad">Vencida hace '+(-d)+' día'+(d===-1?'':'s')+'</span>':(d<=3?'<span class="chip c-warn">Vence '+(d===0?'hoy':'en '+d+' día'+(d===1?'':'s'))+'</span>':'<span class="chip c-ok">Al día</span>'));
+    var rw=me.rewards||[],next=rw.filter(function(x){return !x.unlocked})[0],unl=rw.filter(function(x){return x.unlocked});
+    var prog=next?Math.min(100,Math.round(100*me.points/next.points)):100;
+    return '<section class="card stack" style="border-color:var(--accLine)"><div class="between"><h3 style="font-size:19px">Hola, '+esc(me.name)+'</h3><button class="btn ghost sm" id="meOut" type="button">No soy yo</button></div>'+
+      '<div class="grid2" style="gap:10px">'+
+       '<div class="card" style="background:var(--bg2);padding:14px"><span class="lbl">Tu cuota</span><div style="margin-top:6px">'+cuota+'</div>'+(me.due_date?'<small class="muted" style="display:block;margin-top:6px">Vence el '+me.due_date.split('-').reverse().join('/')+(me.plan?' · '+esc(me.plan):'')+'</small>':'')+'</div>'+
+       '<div class="card" style="background:var(--bg2);padding:14px"><span class="lbl">Tus puntos</span><div style="font-family:var(--display);font-weight:800;font-size:34px;color:var(--acc);line-height:1.1">'+me.points+'</div><small class="muted">'+me.month_visits+' visita'+(me.month_visits===1?'':'s')+' este mes</small></div>'+
+      '</div>'+
+      (d!=null&&d<=3?'<div class="msgbox'+(d<0?' err':'')+'">'+(d<0?'Tu cuota está vencida. Renovala en recepción'+(data.whatsapp?' o escribile al gimnasio':'')+' para seguir sumando puntos.':'Tu cuota vence pronto. Renovala para no cortar tu racha.')+'</div>':'')+
+      (next?'<div><div class="between" style="font-size:14px"><span>Próximo premio: <b>'+esc(next.title)+'</b></span><span class="muted">'+me.points+' / '+next.points+'</span></div><div class="meter" style="margin-top:6px"><i style="width:'+prog+'%"></i></div><small class="muted">Te faltan '+(next.points-me.points)+' puntos ('+Math.ceil((next.points-me.points)/10)+' visitas).</small></div>':'')+
+      (unl.length?'<div><span class="lbl">Premios desbloqueados</span><div class="list" style="margin-top:4px">'+unl.map(function(x){return '<div class="li"><span class="chip c-ok">Listo</span><div class="who"><strong>'+esc(x.title)+'</strong><small>'+esc(x.detail||'Pedilo en recepción mostrando esta pantalla.')+'</small></div></div>'}).join('')+'</div></div>':'')+
+      ((me.promos||[]).length?'<div><span class="lbl">Promos para vos</span><div class="list" style="margin-top:4px">'+me.promos.map(function(x){return '<div class="li"><span class="chip c-acc">Promo</span><div class="who"><strong style="white-space:normal">'+esc(x.title)+'</strong><small style="white-space:normal">'+esc(x.detail||'')+(x.until?' · hasta el '+x.until.split('-').reverse().slice(0,2).join('/'):'')+'</small></div></div>'}).join('')+'</div></div>':'')+
+      (rw.filter(function(x){return !x.unlocked}).length>1?'<details><summary style="font-size:14px">Todos los premios</summary><div class="list" style="margin-top:6px">'+rw.map(function(x){return '<div class="li"><span class="chip '+(x.unlocked?'c-ok':'c-dim')+'">'+x.points+' pts</span><div class="who"><strong>'+esc(x.title)+'</strong></div></div>'}).join('')+'</div></details>':'')+
+    '</section>';
+  }
   function state(p){return p<50?['Hay lugar','var(--ok)']:(p<80?['Moderado','var(--warn)']:['Lleno','var(--bad)'])}
   function render(){
     var p=data.pct||0,st=state(p),free=Math.max(0,data.capacity-data.inside),nowH=new Date().getHours();
@@ -672,10 +824,11 @@ async function publicView(slug,machineId,tv){
       '<header class="pub-h"><div class="lg">'+(data.logo_url?'<img src="'+esc(data.logo_url)+'" alt="">':esc(initials(data.name)))+'</div><div style="min-width:0"><h1 style="font-size:24px;overflow-wrap:anywhere">'+esc(data.name)+'</h1><span class="muted" style="font-size:13.5px">En vivo · se actualiza solo</span></div></header>'+
       (mq?'<section class="card stack" style="border-color:var(--accLine)"><span class="lbl">Máquina</span><h2 style="font-size:24px">'+esc(mq.name)+'</h2><span class="chip '+(mq.busy?'c-warn':'c-ok')+'" style="align-self:flex-start">'+(mq.busy?'En uso hasta las '+new Date(mq.until).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'Libre')+'</span>'+
          '<div class="rowx"><button class="btn" data-use="30">La estoy usando (30 min)</button>'+(mq.busy?'<button class="btn ghost" data-use="0">Ya la dejé libre</button>':'')+'</div></section>':'')+
+      (tv?'':meHTML())+
       (tv?'':'<section class="card stack"><h3 style="font-size:18px">Marcá tu entrada</h3>'+
         (result?'<div class="msgbox'+(result.err?' err':'')+'" style="font-size:15px">'+result.t+'</div>':'')+
         '<form id="ck" class="composer" style="margin:0"><input type="tel" id="ckP" placeholder="Tu WhatsApp" value="'+esc(getPhone())+'" autocomplete="tel" aria-label="Tu número de WhatsApp"><button class="btn" type="submit" id="ckB">Entré</button></form>'+
-        '<small class="muted">Sumás 10 puntos por visita. Tu número queda guardado en este celu.</small></section>')+
+        '<small class="muted">Sumás 10 puntos por visita. Tu número queda guardado en este celu'+(me?'':' y vas a ver tu cuota, tus puntos y tus promos')+'.</small></section>')+
       '<section class="card stack"><span class="lbl">Qué tan lleno está ahora</span><div class="bigpct">'+p+'%</div><div class="meter"><i style="width:'+p+'%"></i></div>'+
         '<div class="between"><strong style="color:'+st[1]+';font-size:18px">'+st[0]+'</strong><span class="muted">'+free+' lugares libres</span></div>'+
         (best!=null?'<span class="muted" style="font-size:14px">Mejor horario hoy: <b style="color:var(--fg)">'+best+' h</b></span>':'')+'</section>'+
@@ -690,13 +843,14 @@ async function publicView(slug,machineId,tv){
       if(r.error){result={t:'Sin conexión. Probá de nuevo.',err:1};render();return}
       var d=r.data;
       if(!d.ok)result={t:d.error==='not_member'?'No encontramos ese número entre los socios. Pedile al gimnasio que te agregue.':'Revisá el número.',err:1};
-      else{setPhone(ph);result={t:d.repeat?'Ya marcaste tu entrada hace un rato, '+esc(d.name)+'. ¡A entrenar!':(d.recovered?'¡Bienvenido de vuelta, '+esc(d.name)+'! Te extrañábamos. ':'¡Hola '+esc(d.name)+'! Entrada marcada. ')+'Tenés <b>'+d.points+' puntos</b>.'}}
+      else{setPhone(ph);await loadMe();result={t:d.repeat?'Ya marcaste tu entrada hace un rato, '+esc(d.name)+'. ¡A entrenar!':(d.recovered?'¡Bienvenido de vuelta, '+esc(d.name)+'! Te extrañábamos. ':'¡Hola '+esc(d.name)+'! Entrada marcada. ')+'Tenés <b>'+d.points+' puntos</b>.'}}
       try{data=await load()}catch(e2){}render()};
+    var mo=$('#meOut');if(mo)mo.onclick=function(){try{localStorage.removeItem(phoneKey)}catch(e){}me=null;result=null;render()};
     $$('[data-use]').forEach(function(b){b.onclick=async function(){b.disabled=true;var r=await sb.rpc('spot_use_machine',{p_slug:slug,p_machine:machineId,p_minutes:+b.dataset.use});
       if(r.error||!r.data.ok){toast('No se pudo actualizar',1);b.disabled=false;return}toast(+b.dataset.use?'Marcada en uso por 30 min':'Gracias por avisar');try{data=await load()}catch(e){}render()}});
   }
   render();
-  setInterval(async function(){if(document.visibilityState!=='visible')return;if(document.activeElement&&document.activeElement.id==='ckP')return;try{data=await load();render()}catch(e){}},tv?20000:45000);
+  setInterval(async function(){if(document.visibilityState!=='visible')return;if(document.activeElement&&document.activeElement.id==='ckP')return;try{data=await load();await loadMe();render()}catch(e){}},tv?20000:45000);
 }
 })();
 </script>
